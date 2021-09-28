@@ -49,8 +49,7 @@ export class EC2Service {
       const selection: SimpleInstance | undefined = instances.find(
         x =>
           x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
-            -1 &&
-          (x.status === 'stopped' || x.status === 'stopping')
+            -1 && x.status === 'stopped'
       )
 
       if (selection) {

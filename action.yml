@@ -14,6 +14,10 @@ inputs:
   instance:
     required: false
     description: 'the EC2 instance id'
+  timeout:
+    required: true
+    description: 'time to wait for a matching instance (seconds)'
+    default: '60'
 outputs:
   id:
     description: 'id of the affected EC2 instance'

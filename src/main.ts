@@ -1,7 +1,9 @@
 import * as core from '@actions/core'
 import {EC2Service} from './services/ec2.service'
 
-async function run(): Promise<void> {
+async function run(entryTime: Date = new Date()): Promise<void> {
+  const timeout: number = +core.getInput('timeout') || 60
+
   try {
     const region: string = core.getInput('region')
     const action: string = core.getInput('action')
@@ -38,7 +40,13 @@ async function run(): Promise<void> {
       throw new Error(`(${action}) is not a valid action`)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    if ((new Date().getTime() - entryTime.getTime()) / 1000 > timeout) {
+      core.setFailed(error.message)
+    } else {
+      setTimeout(() => {
+        run(entryTime)
+      }, 5000)
+    }
   }
 }
 
