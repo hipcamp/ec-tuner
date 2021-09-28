@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Control State of EC2 Instances'
+description: 'Start/Stop EC2 Instances from withing GitHub Actions Workflows'
+author: 'Hipcamp'
 inputs:
   region:
     required: true
