@@ -2,10 +2,21 @@ name: 'Your name here'
 description: 'Provide a description here'
 author: 'Your name or organization here'
 inputs:
-  milliseconds: # change this
+  region:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'selected region for EC2 instances'
+  action:
+    required: true
+    description: 'stop or start'
+  label:
+    required: false
+    description: 'the label to filter EC2 instances with'
+  instance:
+    required: false
+    description: 'the EC2 instance id'
+outputs:
+  id:
+    description: 'id of the affected EC2 instance'
 runs:
   using: 'node12'
   main: 'dist/index.js'
