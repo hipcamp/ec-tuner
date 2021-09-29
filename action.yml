@@ -11,16 +11,20 @@ inputs:
   label:
     required: false
     description: 'the label to filter EC2 instances with'
-  instance:
+  instances:
     required: false
-    description: 'the EC2 instance id'
+    description: 'a list of EC2 instance ids'
   timeout:
     required: true
     description: 'time to wait for a matching instance (seconds)'
     default: '60'
+  runners:
+    required: true
+    description: 'the amount of runners to start with matching labels'
+    default: '1'
 outputs:
-  id:
-    description: 'id of the affected EC2 instance'
+  ids:
+    description: 'ids of the affected EC2 instances'
 runs:
   using: 'node12'
   main: 'dist/index.js'

@@ -43,28 +43,34 @@ export class EC2Service {
     })
   }
 
-  async getFreeInstance(label: string): Promise<SimpleInstance> {
+  async getFreeInstances(
+    label: string,
+    runners = 1
+  ): Promise<SimpleInstance[]> {
     return new Promise(async (resolve, reject) => {
       const instances: SimpleInstance[] = await this.getInstances()
-      const selection: SimpleInstance | undefined = instances.find(
+      const filteredInstances: SimpleInstance[] = instances.filter(
         x =>
           x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
             -1 && x.status === 'stopped'
       )
 
-      if (selection) {
-        resolve(selection)
+      if (filteredInstances.length >= runners) {
+        resolve(filteredInstances.slice(0, runners))
       } else {
+        // TODO: Add messaging for when not enough runners are available, and potential retry logic
+        // TODO: add some alerting here
         reject(new Error('No instances available.'))
       }
     })
   }
 
-  startInstance(id: string): void {
-    this._client.startInstances({InstanceIds: [id]}).send()
+  startInstances(ids: string[]): void {
+    this._client.startInstances({InstanceIds: ids}).send()
   }
 
-  stopInstance(id: string): void {
-    this._client.stopInstances({InstanceIds: [id]}).send()
+  stopInstances(ids: string[]): void {
+    // TODO: Add logic for only stopping an instance when it is idle in GitHub. Consider conditions in which a runner is started, but another job picks it up.
+    this._client.stopInstances({InstanceIds: ids}).send()
   }
 }

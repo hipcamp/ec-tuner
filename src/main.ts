@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import {SimpleInstance} from './models/simple-instance'
 import {EC2Service} from './services/ec2.service'
 
 async function run(entryTime: Date = new Date()): Promise<void> {
@@ -8,20 +9,26 @@ async function run(entryTime: Date = new Date()): Promise<void> {
     const region: string = core.getInput('region')
     const action: string = core.getInput('action')
     const label: string = core.getInput('label')
-    const instanceId: string = core.getInput('instance')
+    const instanceIds: string[] = core.getInput('instances')
+      ? core.getInput('instances').split(' ')
+      : []
+    const runners: number = +core.getInput('runners')
 
     const ec2: EC2Service = new EC2Service(region)
 
     if (action.toLowerCase() === 'start') {
-      if (instanceId) {
-        ec2.startInstance(instanceId)
-        core.setOutput('id', instanceId)
+      if (instanceIds.length > 0) {
+        ec2.startInstances(instanceIds)
+        core.setOutput('ids', instanceIds.join(' '))
       } else {
         if (label) {
           try {
-            const instance = await ec2.getFreeInstance(label)
-            ec2.startInstance(instance.id)
-            core.setOutput('id', instance.id)
+            const instances: SimpleInstance[] = await ec2.getFreeInstances(
+              label,
+              runners
+            )
+            ec2.startInstances(instances.map(x => x.id))
+            core.setOutput('ids', instances.map(x => x.id).join(' '))
           } catch (e) {
             throw e
           }
@@ -30,11 +37,11 @@ async function run(entryTime: Date = new Date()): Promise<void> {
         }
       }
     } else if (action.toLowerCase() === 'stop') {
-      if (instanceId) {
-        ec2.stopInstance(instanceId)
-        core.setOutput('id', instanceId)
+      if (instanceIds.length > 0) {
+        ec2.stopInstances(instanceIds)
+        core.setOutput('ids', instanceIds.join(' '))
       } else {
-        throw new Error('instance is required to run stop action')
+        throw new Error('instance ids are required to run stop action')
       }
     } else {
       throw new Error(`(${action}) is not a valid action`)
@@ -43,6 +50,7 @@ async function run(entryTime: Date = new Date()): Promise<void> {
     if ((new Date().getTime() - entryTime.getTime()) / 1000 > timeout) {
       core.setFailed(error.message)
     } else {
+      core.info('could not reserve instance(s), attempting again in 5 seconds')
       setTimeout(() => {
         run(entryTime)
       }, 5000)
