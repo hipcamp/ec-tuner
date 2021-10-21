@@ -95,16 +95,16 @@ export class EC2Service {
   }
 
   async getGithubIdleRunnerIps(): Promise<string[]> {
-    const runners = await github.actions.listSelfHostedRunnersForOrg({
-      org: "hipcamp",
+    const response = await github.actions.listSelfHostedRunnersForOrg({
+      org: 'hipcamp'
     })
 
-    var idleRunnerIps: string[] = [];
-    runners.data.runners.forEach((runner: any) => {
-        if (runner.status === "online" && runner.busy === false) {
-          idleRunnerIps.push(runner.name.slice(3, -2))
-        }
-    })
+    const idleRunnerIps: string[] = []
+    for (const runner of response.data.runners) {
+      if (runner.status === 'online' && runner.busy === false) {
+        idleRunnerIps.push(runner.name.slice(3, -2))
+      }
+    }
 
     return idleRunnerIps
   }

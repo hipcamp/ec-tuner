@@ -44,14 +44,18 @@ async function run(entryTime: Date = new Date()): Promise<void> {
       while (stoppedInstanceCount < runners) {
         let elapsedTime = Date.now() - startTime
         if (elapsedTime >= stopTimeout) {
-          break;
+          break
         }
 
-        core.info(`Have stopped ${stoppedInstanceCount} of ${runners} instances after ${Math.round(elapsedTime / 1000)} seconds..`)
+        core.info(
+          `Have stopped ${stoppedInstanceCount} of ${runners} instances after ${Math.round(
+            elapsedTime / 1000
+          )} seconds..`
+        )
 
         let idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
           label,
-          (runners - stoppedInstanceCount)
+          runners - stoppedInstanceCount
         )
         let instanceIds = idleInstances.map(instance => instance.id)
 
@@ -64,11 +68,14 @@ async function run(entryTime: Date = new Date()): Promise<void> {
       }
 
       if (stoppedInstanceCount < runners) {
-        core.info(`Heads up! Only shut down ${stoppedInstanceCount} of ${runners} instances after 5 minutes..`)
+        core.info(
+          `Heads up! Only shut down ${stoppedInstanceCount} of ${runners} instances after 5 minutes..`
+        )
       } else {
-        core.info(`Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`)
+        core.info(
+          `Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`
+        )
       }
-
     } else {
       throw new Error(`(${action}) is not a valid action`)
     }
