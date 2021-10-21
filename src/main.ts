@@ -76,7 +76,11 @@ async function run(entryTime: Date = new Date()): Promise<void> {
           `Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`
         )
       }
-    } else {
+    }
+    else if (action.toLowerCase() === 'test') {
+      core.info('Able to trigger action run!')
+    }
+     else {
       throw new Error(`(${action}) is not a valid action`)
     }
   } catch (error) {
