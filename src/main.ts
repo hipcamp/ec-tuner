@@ -37,12 +37,38 @@ async function run(entryTime: Date = new Date()): Promise<void> {
         }
       }
     } else if (action.toLowerCase() === 'stop') {
-      if (instanceIds.length > 0) {
-        ec2.stopInstances(instanceIds)
-        core.setOutput('ids', instanceIds.join(' '))
-      } else {
-        throw new Error('instance ids are required to run stop action')
+      let stoppedInstanceCount: number = 0
+      const stopTimeout: number = 300000 // 5 minutes
+      const startTime: number = Date.now()
+
+      while (stoppedInstanceCount < runners) {
+        let elapsedTime = Date.now() - startTime
+        if (elapsedTime >= stopTimeout) {
+          break;
+        }
+
+        core.info(`Have stopped ${stoppedInstanceCount} of ${runners} instances after ${Math.round(elapsedTime / 1000)} seconds..`)
+
+        let idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
+          label,
+          (runners - stoppedInstanceCount)
+        )
+        let instanceIds = idleInstances.map(instance => instance.id)
+
+        if (instanceIds.length > 0) {
+          ec2.stopInstances(instanceIds)
+          stoppedInstanceCount += instanceIds.length
+        } else {
+          core.info('No current idle instances available to stop..')
+        }
       }
+
+      if (stoppedInstanceCount < runners) {
+        core.info(`Heads up! Only shut down ${stoppedInstanceCount} of ${runners} instances after 5 minutes..`)
+      } else {
+        core.info(`Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`)
+      }
+
     } else {
       throw new Error(`(${action}) is not a valid action`)
     }

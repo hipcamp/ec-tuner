@@ -1,5 +1,6 @@
 import {EC2} from 'aws-sdk'
 import {SimpleInstance} from '../models/simple-instance'
+import github from '../services/github'
 
 export class EC2Service {
   private _client: EC2
@@ -26,6 +27,7 @@ export class EC2Service {
                 for (const instance of reservation.Instances) {
                   instances.push({
                     id: instance.InstanceId || '',
+                    privateIp: instance.PrivateIpAddress || '',
                     status: instance.State?.Name || '',
                     type: instance.InstanceType || '',
                     labels:
@@ -60,9 +62,51 @@ export class EC2Service {
       } else {
         // TODO: Add messaging for when not enough runners are available, and potential retry logic
         // TODO: add some alerting here
-        reject(new Error('No instances available.'))
+        reject(new Error('No free instances available.'))
       }
     })
+  }
+
+  async getIdleInstances(
+    label: string,
+    runners = 1
+  ): Promise<SimpleInstance[]> {
+    return new Promise(async (resolve, reject) => {
+      const instances: SimpleInstance[] = await this.getInstances()
+      const runningInstances: SimpleInstance[] = instances.filter(
+        x =>
+          x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
+            -1 && x.status === 'running'
+      )
+
+      const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
+      const idleInstances: SimpleInstance[] = runningInstances.filter(
+        instance => {
+          githubIdleRunnerIps.includes(instance.privateIp)
+        }
+      )
+
+      if (idleInstances.length !== 0) {
+        resolve(idleInstances.slice(0, runners))
+      } else {
+        reject(new Error('No idle instances exist.'))
+      }
+    })
+  }
+
+  async getGithubIdleRunnerIps(): Promise<string[]> {
+    const runners = await github.actions.listSelfHostedRunnersForOrg({
+      org: "hipcamp",
+    })
+
+    var idleRunnerIps: string[] = [];
+    runners.data.runners.forEach((runner: any) => {
+        if (runner.status === "online" && runner.busy === false) {
+          idleRunnerIps.push(runner.name.slice(3, -2))
+        }
+    })
+
+    return idleRunnerIps
   }
 
   startInstances(ids: string[]): void {
