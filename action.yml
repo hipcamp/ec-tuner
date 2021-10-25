@@ -11,9 +11,6 @@ inputs:
   label:
     required: false
     description: 'the label to filter EC2 instances with'
-  instances:
-    required: false
-    description: 'a list of EC2 instance ids'
   timeout:
     required: true
     description: 'time to wait for a matching instance (seconds)'
@@ -23,12 +20,13 @@ inputs:
     description: 'the amount of runners to start with matching labels'
     default: '1'
   token:
-    required: false
-    description: 'temporary gha token for testing getting idle status runners from github api'
-    default: 'token'
+    required: true
+    description: 'the gha token for getting idle status runners from github api'
 outputs:
   ids:
     description: 'ids of the affected EC2 instances'
+  started:
+    description: 'number of runners started by this action'
 runs:
   using: 'node12'
   main: 'dist/index.js'

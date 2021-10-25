@@ -9,40 +9,39 @@ async function run(entryTime: Date = new Date()): Promise<void> {
     const region: string = core.getInput('region')
     const action: string = core.getInput('action')
     const label: string = core.getInput('label')
-    const instanceIds: string[] = core.getInput('instances')
-      ? core.getInput('instances').split(' ')
-      : []
+    const token: string = core.getInput('token')
     const runners: number = +core.getInput('runners')
 
-    const ec2: EC2Service = new EC2Service(region)
+    const ec2: EC2Service = new EC2Service(region, token)
 
     if (action.toLowerCase() === 'start') {
-      if (instanceIds.length > 0) {
-        ec2.startInstances(instanceIds)
-        core.setOutput('ids', instanceIds.join(' '))
-      } else {
-        if (label) {
-          try {
-            const instances: SimpleInstance[] = await ec2.getFreeInstances(
-              label,
-              runners
+      if (label) {
+        try {
+          const instances: SimpleInstance[] = await ec2.getFreeInstances(
+            label,
+            runners
+          )
+          ec2.startInstances(instances.map(x => x.id))
+          if (instances.length < runners) {
+            core.warning(
+              `Could only start ${instances.length} of the requested ${runners} instance(s)`
             )
-            ec2.startInstances(instances.map(x => x.id))
-            core.setOutput('ids', instances.map(x => x.id).join(' '))
-          } catch (e) {
-            throw e
           }
-        } else {
-          throw new Error('label is required when instance is not provided')
+          core.setOutput('ids', instances.map(x => x.id).join(' '))
+          core.setOutput('started', instances.length)
+        } catch (e) {
+          throw e
         }
+      } else {
+        throw new Error('label is required')
       }
     } else if (action.toLowerCase() === 'stop') {
-      let stoppedInstanceCount: number = 0
-      const stopTimeout: number = 300000 // 5 minutes
+      let stoppedInstanceCount = 0
+      const stopTimeout = 300000 // 5 minutes
       const startTime: number = Date.now()
 
       while (stoppedInstanceCount < runners) {
-        let elapsedTime = Date.now() - startTime
+        const elapsedTime = Date.now() - startTime
         if (elapsedTime >= stopTimeout) {
           break
         }
@@ -53,11 +52,11 @@ async function run(entryTime: Date = new Date()): Promise<void> {
           )} seconds..`
         )
 
-        let idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
+        const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
           label,
           runners - stoppedInstanceCount
         )
-        let instanceIds = idleInstances.map(instance => instance.id)
+        const instanceIds = idleInstances.map(instance => instance.id)
 
         if (instanceIds.length > 0) {
           ec2.stopInstances(instanceIds)
@@ -68,7 +67,7 @@ async function run(entryTime: Date = new Date()): Promise<void> {
       }
 
       if (stoppedInstanceCount < runners) {
-        core.info(
+        core.warning(
           `Heads up! Only shut down ${stoppedInstanceCount} of ${runners} instances after 5 minutes..`
         )
       } else {
