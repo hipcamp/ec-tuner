@@ -81,6 +81,9 @@ export class EC2Service {
   ): Promise<SimpleInstance[]> {
     return new Promise(async (resolve, reject) => {
       const instances: SimpleInstance[] = await this.getInstances()
+
+      core.debug(`EC2 Instances: ${JSON.stringify(instances)}`)
+
       const runningInstances: SimpleInstance[] = instances.filter(
         x =>
           x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
