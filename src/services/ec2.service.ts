@@ -1,16 +1,23 @@
 import {EC2} from 'aws-sdk'
 import {SimpleInstance} from '../models/simple-instance'
+import {Octokit} from '@octokit/rest'
 
 export class EC2Service {
-  private _client: EC2
-  region: string
+  private readonly _client: EC2
+  private readonly _github: Octokit
+  private readonly organization: string
 
-  constructor(region: string) {
-    this.region = region
+  constructor(region: string, token: string) {
     const options: EC2.ClientConfiguration = {
       region
     }
     this._client = new EC2(options)
+    this._github = new Octokit({
+      auth: `token ${token}`
+    })
+    this.organization = (process.env['GITHUB_REPOSITORY'] as string).split(
+      '/'
+    )[0]
   }
 
   async getInstances(): Promise<SimpleInstance[]> {
@@ -26,6 +33,7 @@ export class EC2Service {
                 for (const instance of reservation.Instances) {
                   instances.push({
                     id: instance.InstanceId || '',
+                    privateIp: instance.PrivateIpAddress || '',
                     status: instance.State?.Name || '',
                     type: instance.InstanceType || '',
                     labels:
@@ -55,14 +63,56 @@ export class EC2Service {
             -1 && x.status === 'stopped'
       )
 
-      if (filteredInstances.length >= runners) {
+      if (filteredInstances.length > 0) {
         resolve(filteredInstances.slice(0, runners))
       } else {
         // TODO: Add messaging for when not enough runners are available, and potential retry logic
         // TODO: add some alerting here
-        reject(new Error('No instances available.'))
+        reject(new Error('No free instances available.'))
       }
     })
+  }
+
+  async getIdleInstances(
+    label: string,
+    runners = 1
+  ): Promise<SimpleInstance[]> {
+    return new Promise(async (resolve, reject) => {
+      const instances: SimpleInstance[] = await this.getInstances()
+      const runningInstances: SimpleInstance[] = instances.filter(
+        x =>
+          x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
+            -1 && x.status === 'running'
+      )
+
+      const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
+      const idleInstances: SimpleInstance[] = runningInstances.filter(
+        instance => {
+          githubIdleRunnerIps.includes(instance.privateIp)
+        }
+      )
+
+      if (idleInstances.length !== 0) {
+        resolve(idleInstances.slice(0, runners))
+      } else {
+        reject(new Error('No idle instances exist.'))
+      }
+    })
+  }
+
+  async getGithubIdleRunnerIps(): Promise<string[]> {
+    const response = await this._github.actions.listSelfHostedRunnersForOrg({
+      org: this.organization
+    })
+
+    const idleRunnerIps: string[] = []
+    for (const runner of response.data.runners) {
+      if (runner.status === 'online' && runner.busy === false) {
+        idleRunnerIps.push(runner.name.slice(3, -2))
+      }
+    }
+
+    return idleRunnerIps
   }
 
   startInstances(ids: string[]): void {

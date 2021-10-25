@@ -9,40 +9,74 @@ async function run(entryTime: Date = new Date()): Promise<void> {
     const region: string = core.getInput('region')
     const action: string = core.getInput('action')
     const label: string = core.getInput('label')
-    const instanceIds: string[] = core.getInput('instances')
-      ? core.getInput('instances').split(' ')
-      : []
+    const token: string = core.getInput('token')
     const runners: number = +core.getInput('runners')
 
-    const ec2: EC2Service = new EC2Service(region)
+    const ec2: EC2Service = new EC2Service(region, token)
 
     if (action.toLowerCase() === 'start') {
-      if (instanceIds.length > 0) {
-        ec2.startInstances(instanceIds)
-        core.setOutput('ids', instanceIds.join(' '))
-      } else {
-        if (label) {
-          try {
-            const instances: SimpleInstance[] = await ec2.getFreeInstances(
-              label,
-              runners
+      if (label) {
+        try {
+          const instances: SimpleInstance[] = await ec2.getFreeInstances(
+            label,
+            runners
+          )
+          ec2.startInstances(instances.map(x => x.id))
+          if (instances.length < runners) {
+            core.warning(
+              `Could only start ${instances.length} of the requested ${runners} instance(s)`
             )
-            ec2.startInstances(instances.map(x => x.id))
-            core.setOutput('ids', instances.map(x => x.id).join(' '))
-          } catch (e) {
-            throw e
           }
-        } else {
-          throw new Error('label is required when instance is not provided')
+          core.setOutput('ids', instances.map(x => x.id).join(' '))
+          core.setOutput('started', instances.length)
+        } catch (e) {
+          throw e
         }
+      } else {
+        throw new Error('label is required')
       }
     } else if (action.toLowerCase() === 'stop') {
-      if (instanceIds.length > 0) {
-        ec2.stopInstances(instanceIds)
-        core.setOutput('ids', instanceIds.join(' '))
-      } else {
-        throw new Error('instance ids are required to run stop action')
+      let stoppedInstanceCount = 0
+      const stopTimeout = 300000 // 5 minutes
+      const startTime: number = Date.now()
+
+      while (stoppedInstanceCount < runners) {
+        const elapsedTime = Date.now() - startTime
+        if (elapsedTime >= stopTimeout) {
+          break
+        }
+
+        core.info(
+          `Have stopped ${stoppedInstanceCount} of ${runners} instances after ${Math.round(
+            elapsedTime / 1000
+          )} seconds..`
+        )
+
+        const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
+          label,
+          runners - stoppedInstanceCount
+        )
+        const instanceIds = idleInstances.map(instance => instance.id)
+
+        if (instanceIds.length > 0) {
+          ec2.stopInstances(instanceIds)
+          stoppedInstanceCount += instanceIds.length
+        } else {
+          core.info('No current idle instances available to stop..')
+        }
       }
+
+      if (stoppedInstanceCount < runners) {
+        core.warning(
+          `Heads up! Only shut down ${stoppedInstanceCount} of ${runners} instances after 5 minutes..`
+        )
+      } else {
+        core.info(
+          `Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`
+        )
+      }
+    } else if (action.toLowerCase() === 'test') {
+      core.info('Able to trigger action run!')
     } else {
       throw new Error(`(${action}) is not a valid action`)
     }
