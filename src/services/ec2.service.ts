@@ -124,7 +124,7 @@ export class EC2Service {
           runner.name
             .replace(/^ip-/i, '')
             .replace(/-\d+$/i, '')
-            .replace('-', '.')
+            .replace(/-/g, '.')
         )
       }
     }
