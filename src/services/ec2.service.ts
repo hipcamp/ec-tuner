@@ -1,6 +1,7 @@
 import {EC2} from 'aws-sdk'
 import {SimpleInstance} from '../models/simple-instance'
 import {Octokit} from '@octokit/rest'
+import * as core from '@actions/core'
 
 export class EC2Service {
   private readonly _client: EC2
@@ -18,6 +19,7 @@ export class EC2Service {
     this.organization = (process.env['GITHUB_REPOSITORY'] as string).split(
       '/'
     )[0]
+    core.debug(`set organization to: ${this.organization}`)
   }
 
   async getInstances(): Promise<SimpleInstance[]> {
@@ -85,7 +87,12 @@ export class EC2Service {
             -1 && x.status === 'running'
       )
 
+      core.debug(`Running Instances: ${JSON.stringify(runningInstances)}`)
+
       const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
+
+      core.debug(`GitHub Idle Runners: ${JSON.stringify(githubIdleRunnerIps)}`)
+
       const idleInstances: SimpleInstance[] = runningInstances.filter(
         (instance: SimpleInstance) => {
           return githubIdleRunnerIps.includes(instance.privateIp)
@@ -104,6 +111,8 @@ export class EC2Service {
     const response = await this._github.actions.listSelfHostedRunnersForOrg({
       org: this.organization
     })
+
+    core.debug(JSON.stringify(response))
 
     const idleRunnerIps: string[] = []
     for (const runner of response.data.runners) {

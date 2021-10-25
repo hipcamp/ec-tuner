@@ -83,7 +83,7 @@ async function run(entryTime: Date = new Date()): Promise<void> {
     if ((new Date().getTime() - entryTime.getTime()) / 1000 > timeout) {
       core.setFailed(error.message)
     } else {
-      core.info('could not reserve instance(s), attempting again in 5 seconds')
+      core.info(`Error ${error.message}. Attempting again in 5 seconds...`)
       setTimeout(() => {
         run(entryTime)
       }, 5000)
