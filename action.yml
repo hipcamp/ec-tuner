@@ -9,7 +9,7 @@ inputs:
     required: true
     description: 'stop or start'
   label:
-    required: false
+    required: true
     description: 'the label to filter EC2 instances with'
   timeout:
     required: true
@@ -25,6 +25,8 @@ inputs:
 outputs:
   ids:
     description: 'ids of the affected EC2 instances'
+  label:
+    description: 'the label used to start the runners'
   started:
     description: 'number of runners started by this action'
 runs:

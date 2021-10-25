@@ -29,6 +29,7 @@ async function run(entryTime: Date = new Date()): Promise<void> {
           }
           core.setOutput('ids', instances.map(x => x.id).join(' '))
           core.setOutput('started', instances.length)
+          core.setOutput('label', label)
         } catch (e) {
           throw e
         }

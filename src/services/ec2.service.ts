@@ -121,7 +121,10 @@ export class EC2Service {
     for (const runner of response.data.runners) {
       if (runner.status === 'online' && runner.busy === false) {
         idleRunnerIps.push(
-          runner.name.replace(/^ip-/i, '').replace(/-\d+$/i, '')
+          runner.name
+            .replace(/^ip-/i, '')
+            .replace(/-\d+$/i, '')
+            .replace('-', '.')
         )
       }
     }
