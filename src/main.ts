@@ -37,12 +37,11 @@ async function run(entryTime: Date = new Date()): Promise<void> {
       }
     } else if (action.toLowerCase() === 'stop') {
       let stoppedInstanceCount = 0
-      const stopTimeout = 300000 // 5 minutes
       const startTime: number = Date.now()
 
       while (stoppedInstanceCount < runners) {
         const elapsedTime = Date.now() - startTime
-        if (elapsedTime >= stopTimeout) {
+        if (elapsedTime / 1000 >= timeout) {
           break
         }
 

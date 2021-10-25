@@ -87,8 +87,8 @@ export class EC2Service {
 
       const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
       const idleInstances: SimpleInstance[] = runningInstances.filter(
-        instance => {
-          githubIdleRunnerIps.includes(instance.privateIp)
+        (instance: SimpleInstance) => {
+          return githubIdleRunnerIps.includes(instance.privateIp)
         }
       )
 
@@ -108,7 +108,9 @@ export class EC2Service {
     const idleRunnerIps: string[] = []
     for (const runner of response.data.runners) {
       if (runner.status === 'online' && runner.busy === false) {
-        idleRunnerIps.push(runner.name.slice(3, -2))
+        idleRunnerIps.push(
+          runner.name.replace(/^ip-/i, '').replace(/-\d+$/i, '')
+        )
       }
     }
 
