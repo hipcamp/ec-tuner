@@ -111,14 +111,17 @@ export class EC2Service {
   }
 
   async getGithubIdleRunnerIps(): Promise<string[]> {
-    const response = await this._github.actions.listSelfHostedRunnersForOrg({
-      org: this.organization
-    })
+    const response = await this._github.paginate(
+      'GET /orgs/{org}/actions/runners',
+      {
+        org: this.organization
+      }
+    )
 
     core.debug(JSON.stringify(response))
 
     const idleRunnerIps: string[] = []
-    for (const runner of response.data.runners) {
+    for (const runner of response.runners) {
       if (runner.status === 'online' && runner.busy === false) {
         idleRunnerIps.push(
           runner.name
