@@ -121,7 +121,7 @@ export class EC2Service {
     core.debug(JSON.stringify(response))
 
     const idleRunnerIps: string[] = []
-    for (const runner of response.runners) {
+    for (const runner of response) {
       if (runner.status === 'online' && runner.busy === false) {
         idleRunnerIps.push(
           runner.name
