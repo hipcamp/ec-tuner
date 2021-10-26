@@ -38,10 +38,9 @@ async function run(entryTime: Date = new Date()): Promise<void> {
       }
     } else if (action.toLowerCase() === 'stop') {
       let stoppedInstanceCount = 0
-      const startTime: number = Date.now()
 
       while (stoppedInstanceCount < runners) {
-        const elapsedTime = Date.now() - startTime
+        const elapsedTime = Date.now() - entryTime.getTime()
         if (elapsedTime / 1000 >= timeout) {
           break
         }
@@ -52,17 +51,21 @@ async function run(entryTime: Date = new Date()): Promise<void> {
           )} seconds..`
         )
 
-        const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
-          label,
-          runners - stoppedInstanceCount
-        )
-        const instanceIds = idleInstances.map(instance => instance.id)
+        try {
+          const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
+            label,
+            runners - stoppedInstanceCount
+          )
+          const instanceIds = idleInstances.map(instance => instance.id)
 
-        if (instanceIds.length > 0) {
-          ec2.stopInstances(instanceIds)
-          stoppedInstanceCount += instanceIds.length
-        } else {
-          core.info('No current idle instances available to stop..')
+          if (instanceIds.length > 0) {
+            ec2.stopInstances(instanceIds)
+            stoppedInstanceCount += instanceIds.length
+          } else {
+            core.info('No current idle instances available to stop..')
+          }
+        } catch (error) {
+          core.warning(error.message)
         }
       }
 
