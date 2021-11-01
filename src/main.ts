@@ -63,15 +63,14 @@ async function run(
         if (instanceIds.length > 0) {
           ec2.stopInstances(instanceIds)
 
-          const testBool = await ec2.anyStoppedInstanceRunning(
-            instancePrivateIps
-          )
-          core.debug(`testBool: ${testBool}`)
+          let testBool = true
 
+          // while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
           while (testBool) {
-            setTimeout(() => {
-              core.info('Waiting for required instances to go offline..')
-            }, 1000)
+            // setTimeout(() => {
+            core.debug('Waiting for required instances to go offline..')
+            // }, 10000)
+            testBool = false
           }
           stoppedInstanceCount += instanceIds.length
         }
