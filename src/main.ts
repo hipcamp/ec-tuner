@@ -63,7 +63,7 @@ async function run(
         if (instanceIds.length > 0) {
           ec2.stopInstances(instanceIds)
 
-          while (ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
+          while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
             setTimeout(() => {
               core.info('Waiting for required instances to go offline..')
             }, 1000)
