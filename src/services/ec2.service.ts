@@ -134,7 +134,7 @@ export class EC2Service {
   }
 
   async anyStoppedInstanceRunning(privateIps: string[]): Promise<boolean> {
-    const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/./g, '-'))
+    const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/\./g, '-'))
 
     core.debug(JSON.stringify(githubIps))
 
