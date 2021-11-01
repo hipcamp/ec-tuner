@@ -118,8 +118,6 @@ export class EC2Service {
       }
     )
 
-    core.debug(JSON.stringify(response))
-
     const idleRunnerIps: string[] = []
     for (const runner of response) {
       if (runner.status === 'online' && runner.busy === false) {
@@ -138,6 +136,8 @@ export class EC2Service {
   async anyStoppedInstanceRunning(privateIps: string[]): Promise<boolean> {
     const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/./g, '-'))
 
+    core.debug(JSON.stringify(githubIps))
+
     const response = await this._github.paginate(
       'GET /orgs/{org}/actions/runners',
       {
@@ -147,7 +147,9 @@ export class EC2Service {
 
     for (const runner of response) {
       if (githubIps.includes(runner.name)) {
-        if (runner.status === 'offline') {
+        core.debug(runner.name)
+        core.debug(runner.status)
+        if (runner.status === 'online') {
           return true
         }
       }
