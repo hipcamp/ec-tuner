@@ -56,9 +56,18 @@ async function run(
           runners - stoppedInstanceCount
         )
         const instanceIds = idleInstances.map(instance => instance.id)
+        const instancePrivateIps = idleInstances.map(
+          instance => instance.privateIp
+        )
 
         if (instanceIds.length > 0) {
           ec2.stopInstances(instanceIds)
+
+          while (ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
+            setTimeout(() => {
+              core.info('Waiting for required instances to go offline..')
+            }, 1000)
+          }
           stoppedInstanceCount += instanceIds.length
         }
       }

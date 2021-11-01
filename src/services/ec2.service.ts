@@ -135,6 +135,27 @@ export class EC2Service {
     return idleRunnerIps
   }
 
+  async anyStoppedInstanceRunning(privateIps: string[]): Promise<boolean> {
+    const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/./g, '-'))
+
+    const response = await this._github.paginate(
+      'GET /orgs/{org}/actions/runners',
+      {
+        org: this.organization
+      }
+    )
+
+    for (const runner of response) {
+      if (githubIps.includes(runner.name)) {
+        if (runner.status === 'online') {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
   startInstances(ids: string[]): void {
     this._client.startInstances({InstanceIds: ids}).send()
   }
