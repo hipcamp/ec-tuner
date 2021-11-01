@@ -149,7 +149,7 @@ export class EC2Service {
       if (githubIps.includes(runner.name)) {
         core.debug(runner.name)
         core.debug(runner.status)
-        if (runner.status === 'online') {
+        if (runner.status === 'offline') {
           return true
         }
       }

@@ -63,7 +63,9 @@ async function run(
         if (instanceIds.length > 0) {
           ec2.stopInstances(instanceIds)
 
-          const testBool = await ec2.anyStoppedInstanceRunning(instancePrivateIps)
+          const testBool = await ec2.anyStoppedInstanceRunning(
+            instancePrivateIps
+          )
           core.debug(`testBool: ${testBool}`)
 
           while (testBool) {
