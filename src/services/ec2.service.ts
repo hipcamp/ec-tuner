@@ -147,7 +147,7 @@ export class EC2Service {
 
     for (const runner of response) {
       if (githubIps.includes(runner.name)) {
-        if (runner.status === 'online') {
+        if (runner.status === 'offline') {
           return true
         }
       }
