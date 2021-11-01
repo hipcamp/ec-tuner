@@ -147,11 +147,10 @@ export class EC2Service {
 
     for (const runner of response) {
       if (githubIps.includes(runner.name)) {
-        core.debug(runner.name)
-        core.debug(runner.status)
-        if (runner.status === 'offline') {
-          return true
-        }
+        // if (runner.status === 'online') {
+        //   return true
+        // }
+        return true
       }
     }
 
