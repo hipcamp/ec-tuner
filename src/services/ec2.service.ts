@@ -146,7 +146,6 @@ export class EC2Service {
     )
 
     for (const runner of response) {
-      core.debug(runner.status)
       if (githubIps.includes(runner.name) && runner.status === 'online') {
         return true
       }
