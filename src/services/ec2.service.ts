@@ -90,8 +90,6 @@ export class EC2Service {
 
       const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
 
-      core.debug(`GitHub Idle Runners: ${JSON.stringify(githubIdleRunnerIps)}`)
-
       const idleInstances: SimpleInstance[] = runningInstances.filter(
         (instance: SimpleInstance) => {
           return githubIdleRunnerIps.includes(instance.privateIp)

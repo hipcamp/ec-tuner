@@ -61,12 +61,16 @@ async function run(
         )
 
         if (instanceIds.length > 0) {
+          core.info(
+            `GitHub Idle Runners to Stop: ${JSON.stringify(instanceIds)}`
+          )
+
           ec2.stopInstances(instanceIds)
 
           while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
             setTimeout(() => {
-              core.debug('Waiting for required instances to go offline..')
-            }, 1000)
+              core.info('Waiting for required instances to go offline..')
+            }, 5000)
           }
           stoppedInstanceCount += instanceIds.length
         }
