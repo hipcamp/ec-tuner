@@ -82,15 +82,11 @@ export class EC2Service {
     return new Promise(async (resolve, reject) => {
       const instances: SimpleInstance[] = await this.getInstances()
 
-      core.debug(`EC2 Instances: ${JSON.stringify(instances)}`)
-
       const runningInstances: SimpleInstance[] = instances.filter(
         x =>
           x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
             -1 && x.status === 'running'
       )
-
-      core.debug(`Running Instances: ${JSON.stringify(runningInstances)}`)
 
       const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
 
@@ -135,8 +131,6 @@ export class EC2Service {
 
   async anyStoppedInstanceRunning(privateIps: string[]): Promise<boolean> {
     const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/\./g, '-'))
-
-    core.debug(JSON.stringify(githubIps))
 
     const response = await this._github.paginate(
       'GET /orgs/{org}/actions/runners',
