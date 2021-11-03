@@ -1,20 +1,86 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+## Usage
 
-# Create a JavaScript Action using TypeScript
+### Pre-requisites
+Create a workflow `.yml` file in your repositories `.github/workflows` directory. An [example workflow](#example-workflow) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+### Inputs
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+* `region` - selected region for EC2 instances
+* `action` - stop or start
+* `label` - the label to filter EC2 instances with
+* `timeout` - time to wait for a matching instance (seconds) *OPTIONAL: Default 60 Seconds*
+* `runners` - the amount of runners to start with matching labels *OPTIONAL: Default 1*
+* `token` - the gha token for getting idle status runners from github api
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+### Outputs
 
-## Create an action from this template
+* `ids` - ids of the affected EC2 instances
+* `label` - the label used to start the runners
+* `started` - number of runners started by this action
 
-Click the `Use this Template` and provide the new repo details for your action
+### Example Workflow
 
-## Code in Main
+```yaml
+name: Use Self-Hosted Runners
+on: push
+jobs:
+  start-self-hosted-runners:
+    name: Start Self-Hosted Runners
+    runs-on: ubuntu-latest
+    outputs:
+      started: ${{steps.start.outputs.started}}
+      label: ${{steps.start.outputs.label}}
+    steps:
+      - name: Install AWS CLI
+        run: |
+          wget https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+          unzip awscli-exe-linux-x86_64.zip
+          sudo ./aws/install --update
+      - id: start
+        name: Start Self-Hosted Runners
+        uses: hipcamp/ec-tuner@v1
+        env:
+          AWS_DEFAULT_REGION: "us-east-1"
+          AWS_ACCESS_KEY_ID: ${{secrets.RUNNER_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.RUNNER_ACCESS_KEY_SECRET}}
+          AWS_ACCOUNT: ${{secrets.AWS_ACCOUNT}}
+        with:
+          region: ${{env.AWS_DEFAULT_REGION}}
+          action: start
+          label: basic
+          runners: 1
+  example:
+    name: Run Job on Self-Hosted Runner
+    runs-on: basic
+    steps:
+      - run: echo "This is an example."
+  stop-self-hosted-runners:
+    name: Stop Self-Hosted Runners
+    needs: [start-self-hosted-runners, example]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Install AWS CLI
+        run: |
+          wget https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+          unzip awscli-exe-linux-x86_64.zip
+          sudo ./aws/install --update
+      - name: Stop Self-Hosted Runners
+        uses: hipcamp/ec-tuner@v1
+        env:
+          AWS_DEFAULT_REGION: "us-east-1"
+          AWS_ACCESS_KEY_ID: ${{secrets.RUNNER_ACCESS_KEY_ID}}
+          AWS_SECRET_ACCESS_KEY: ${{secrets.RUNNER_ACCESS_KEY_SECRET}}
+          AWS_ACCOUNT: ${{secrets.AWS_ACCOUNT}}
+        with:
+          token: ${{secrets.SELF_HOSTED_RUNNER_TOKEN}}
+          region: ${{env.AWS_DEFAULT_REGION}}
+          action: stop
+          label: ${{needs.start-self-hosted-runners.outputs.label}}
+          runners: ${{needs.start-self-hosted-runners.outputs.started}}
+```
+
+## How to Contribute
 
 > First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
 
@@ -70,36 +136,19 @@ run()
 
 See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
 
-## Publish to a distribution branch
+## Publish to a Distribution Branch
 
 Actions are run from GitHub repos so we will checkin the packed dist folder. 
 
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
 ```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
+$ npm run all
+$ git add -A
+$ git commit -m "your commit message"
+$ git tag v[version from package.json]
+$ git push origin v[version from package.json]
 ```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
 
 Your action is now published! :rocket: 
 
 See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
 
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
-
-```yaml
-uses: ./
-with:
-  milliseconds: 1000
-```
-
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
-
-## Usage:
-
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
