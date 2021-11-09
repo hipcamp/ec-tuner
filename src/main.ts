@@ -67,21 +67,7 @@ async function run(
 
           ec2.stopInstances(instanceIds)
 
-          let stoppedInstanceRunning = await ec2.anyStoppedInstanceRunning(
-            instancePrivateIps
-          )
-          core.warning(`Any instance running?: ${stoppedInstanceRunning}`)
-          while (stoppedInstanceRunning) {
-            setTimeout(async () => {
-              core.info('Waiting for required instances to go offline..')
-              stoppedInstanceRunning = await ec2.anyStoppedInstanceRunning(
-                instancePrivateIps
-              )
-              core.warning(
-                `Any instance running inside?: ${stoppedInstanceRunning}`
-              )
-            }, 5000)
-          }
+          while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {}
           stoppedInstanceCount += instanceIds.length
         }
       }
