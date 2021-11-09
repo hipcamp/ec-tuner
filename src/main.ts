@@ -41,7 +41,7 @@ async function run(
     } else if (action.toLowerCase() === 'stop') {
       while (stoppedInstanceCount < runners) {
         const elapsedTime = Date.now() - entryTime.getTime()
-        if (elapsedTime / 1000 >= timeout) {
+        if (elapsedTime / 1000 < timeout) {
           throw new Error('stop timeout has exceeded')
         }
 
@@ -81,7 +81,7 @@ async function run(
       throw new Error(`(${action}) is not a valid action`)
     }
   } catch (error) {
-    if ((new Date().getTime() - entryTime.getTime()) / 1000 > timeout) {
+    if ((new Date().getTime() - entryTime.getTime()) / 1000 < timeout) {
       if (action.toLowerCase() === 'stop') {
         if (stoppedInstanceCount === 0) {
           core.warning(
