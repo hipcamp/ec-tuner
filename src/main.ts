@@ -42,7 +42,7 @@ async function run(
       while (stoppedInstanceCount < runners) {
         const elapsedTime = Date.now() - entryTime.getTime()
         if (elapsedTime / 1000 >= timeout) {
-          break
+          throw new Error('stop timeout has exceeded')
         }
 
         core.info(
@@ -67,9 +67,15 @@ async function run(
 
           ec2.stopInstances(instanceIds)
 
-          while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {
-            setTimeout(() => {
+          let stoppedInstanceRunning = await ec2.anyStoppedInstanceRunning(
+            instancePrivateIps
+          )
+          while (stoppedInstanceRunning) {
+            setTimeout(async () => {
               core.info('Waiting for required instances to go offline..')
+              stoppedInstanceRunning = await ec2.anyStoppedInstanceRunning(
+                instancePrivateIps
+              )
             }, 5000)
           }
           stoppedInstanceCount += instanceIds.length
@@ -86,10 +92,14 @@ async function run(
     }
   } catch (error) {
     if ((new Date().getTime() - entryTime.getTime()) / 1000 > timeout) {
-      if (action.toLowerCase() === 'stop' && stoppedInstanceCount > 0) {
-        if (stoppedInstanceCount < runners) {
+      if (action.toLowerCase() === 'stop') {
+        if (stoppedInstanceCount === 0) {
           core.warning(
-            `Heads up! Only shut down ${stoppedInstanceCount} of ${runners}`
+            `Heads up! Was not able to shut down any of the ${runners} required runners..`
+          )
+        } else {
+          core.warning(
+            `Heads up! Only shut down ${stoppedInstanceCount} of ${runners} runners..`
           )
         }
       } else {
