@@ -77,7 +77,9 @@ async function run(
               stoppedInstanceRunning = await ec2.anyStoppedInstanceRunning(
                 instancePrivateIps
               )
-              core.warning(`Any instance running inside?: ${stoppedInstanceRunning}`)
+              core.warning(
+                `Any instance running inside?: ${stoppedInstanceRunning}`
+              )
             }, 5000)
           }
           stoppedInstanceCount += instanceIds.length
