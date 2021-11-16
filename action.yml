@@ -14,7 +14,7 @@ inputs:
   timeout:
     required: true
     description: 'time to wait for a matching instance (seconds)'
-    default: '60'
+    default: '180'
   runners:
     required: true
     description: 'the amount of runners to start with matching labels'
