@@ -19,12 +19,14 @@ inputs:
     required: true
     description: 'the amount of runners to start with matching labels'
     default: '1'
+  block:
+    required: true
+    description: 'the amount of runners to start at a time'
+    default: '1'
   token:
     required: true
     description: 'the gha token for getting idle status runners from github api'
 outputs:
-  ids:
-    description: 'ids of the affected EC2 instances'
   label:
     description: 'the label used to start the runners'
   started:
