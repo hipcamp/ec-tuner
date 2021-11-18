@@ -33,12 +33,12 @@ async function run(
 
           const neededRunners: number = runners - modifiedInstanceCount
 
-          const instances = await ec2.startInstances(
+          const instancesStarted = await ec2.startInstances(
             label,
             block <= neededRunners ? block : neededRunners
           )
 
-          modifiedInstanceCount += instances.length
+          modifiedInstanceCount += instancesStarted
         }
 
         core.setOutput('started', modifiedInstanceCount)

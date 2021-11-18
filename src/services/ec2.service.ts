@@ -62,7 +62,6 @@ export class EC2Service {
           }
         }
       }
-      core.debug(JSON.stringify(instances))
       return instances
     } catch (err) {
       core.error(err)
@@ -163,8 +162,7 @@ export class EC2Service {
     return false
   }
 
-  async startInstances(label: string, requested: number): Promise<string[]> {
-    const startedInstanceIds: string[] = []
+  async startInstances(label: string, requested: number): Promise<number> {
     try {
       const ids: string[] = (await this.getFreeInstances(label, requested)).map(
         x => x.id
@@ -175,11 +173,11 @@ export class EC2Service {
       const command: StartInstancesCommand = new StartInstancesCommand(params)
       const data: StartInstancesCommandOutput = await this._client.send(command)
       core.debug(JSON.stringify(data.StartingInstances))
-      startedInstanceIds.push(...ids)
+      return data.StartingInstances?.length || 0
     } catch (err) {
       core.warning(err)
+      return 0
     }
-    return startedInstanceIds
   }
 
   async stopInstances(ids: string[]): Promise<void> {
