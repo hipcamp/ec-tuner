@@ -34,8 +34,11 @@ export class EC2Service {
     core.debug(`set organization to: ${this.organization}`)
   }
 
-  async getInstances(): Promise<SimpleInstance[]> {
+  async getInstances(instanceIds: string[] = []): Promise<SimpleInstance[]> {
     const params: DescribeInstancesCommandInput = {}
+    if (instanceIds.length > 0) {
+      params.InstanceIds = instanceIds
+    }
     const command = new DescribeInstancesCommand(params)
 
     try {
@@ -67,6 +70,15 @@ export class EC2Service {
       core.error(err)
       return []
     }
+  }
+
+  async instancesStarted(instanceIds: string[]): Promise<boolean> {
+    const instances: SimpleInstance[] = await this.getInstances(instanceIds)
+    return (
+      instances
+        .map(x => x.status.toLowerCase())
+        .findIndex(x => x === 'stopped') === -1
+    )
   }
 
   async getFreeInstances(
@@ -173,7 +185,16 @@ export class EC2Service {
       const command: StartInstancesCommand = new StartInstancesCommand(params)
       const data: StartInstancesCommandOutput = await this._client.send(command)
       core.debug(JSON.stringify(data.StartingInstances))
-      return data.StartingInstances?.length || 0
+      const startedIds: string[] =
+        (data.StartingInstances?.map(x => x.InstanceId) as string[]) || []
+      for (let i = 0; i < 5; i++) {
+        setTimeout(async () => {
+          if (await this.instancesStarted(startedIds)) {
+            return startedIds.length
+          }
+        }, 1000 * i)
+      }
+      return 0
     } catch (err) {
       core.warning(err)
       return 0
