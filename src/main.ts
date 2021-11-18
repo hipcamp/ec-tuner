@@ -23,7 +23,7 @@ async function run(
             label,
             runners
           )
-          ec2.startInstances(instances.map(x => x.id))
+          await ec2.startInstances(instances.map(x => x.id))
           if (instances.length < runners) {
             core.warning(
               `Could only start ${instances.length} of the requested ${runners} instance(s)`
@@ -65,9 +65,10 @@ async function run(
             `GitHub Idle Runners to Stop: ${JSON.stringify(instanceIds)}`
           )
 
-          ec2.stopInstances(instanceIds)
+          await ec2.stopInstances(instanceIds)
 
           // Make sure the runners are actually idle in GH before adding to count
+          // eslint-disable-next-line no-empty
           while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {}
           stoppedInstanceCount += instanceIds.length
         }

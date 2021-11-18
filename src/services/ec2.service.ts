@@ -1,18 +1,30 @@
-import {EC2} from 'aws-sdk'
+import {
+  EC2Client,
+  EC2ClientConfig,
+  DescribeInstancesCommand,
+  DescribeInstancesCommandInput,
+  DescribeInstancesCommandOutput,
+  StartInstancesCommand,
+  StartInstancesCommandInput,
+  StartInstancesCommandOutput,
+  StopInstancesCommand,
+  StopInstancesCommandInput,
+  StopInstancesCommandOutput
+} from '@aws-sdk/client-ec2'
 import {SimpleInstance} from '../models/simple-instance'
 import {Octokit} from '@octokit/rest'
 import * as core from '@actions/core'
 
 export class EC2Service {
-  private readonly _client: EC2
+  private readonly _client: EC2Client
   private readonly _github: Octokit
   private readonly organization: string
 
   constructor(region: string, token: string) {
-    const options: EC2.ClientConfiguration = {
+    const options: EC2ClientConfig = {
       region
     }
-    this._client = new EC2(options)
+    this._client = new EC2Client(options)
     this._github = new Octokit({
       auth: `token ${token}`
     })
@@ -23,34 +35,39 @@ export class EC2Service {
   }
 
   async getInstances(): Promise<SimpleInstance[]> {
-    return new Promise((resolve, reject) => {
-      this._client.describeInstances((err, data) => {
-        const instances: SimpleInstance[] = []
-        if (err) {
-          reject(err)
-        } else {
-          if (data.Reservations) {
-            for (const reservation of data.Reservations) {
-              if (reservation.Instances) {
-                for (const instance of reservation.Instances) {
-                  instances.push({
-                    id: instance.InstanceId || '',
-                    privateIp: instance.PrivateIpAddress || '',
-                    status: instance.State?.Name || '',
-                    type: instance.InstanceType || '',
-                    labels:
-                      instance.Tags?.find(
-                        x => x.Key === 'labels'
-                      )?.Value?.split(',') || []
-                  })
-                }
-              }
+    const params: DescribeInstancesCommandInput = {}
+    const command = new DescribeInstancesCommand(params)
+
+    try {
+      const data: DescribeInstancesCommandOutput = await this._client.send(
+        command
+      )
+
+      const instances: SimpleInstance[] = []
+      if (data.Reservations) {
+        for (const reservation of data.Reservations) {
+          if (reservation.Instances) {
+            for (const instance of reservation.Instances) {
+              instances.push({
+                id: instance.InstanceId || '',
+                privateIp: instance.PrivateIpAddress || '',
+                status: instance.State?.Name || '',
+                type: instance.InstanceType || '',
+                labels:
+                  instance.Tags?.find(x => x.Key === 'labels')?.Value?.split(
+                    ','
+                  ) || []
+              })
             }
           }
-          resolve(instances)
         }
-      })
-    })
+      }
+      core.debug(JSON.stringify(instances))
+      return instances
+    } catch (err) {
+      core.error(err)
+      return []
+    }
   }
 
   async getFreeInstances(
@@ -146,26 +163,29 @@ export class EC2Service {
     return false
   }
 
-  startInstances(ids: string[]): void {
+  async startInstances(ids: string[]): Promise<void> {
     try {
-      this._client
-        .startInstances({InstanceIds: ids})
-        .promise()
-        // eslint-disable-next-line github/no-then
-        .then(resp => {
-          core.info(JSON.stringify(resp))
-        })
-        // eslint-disable-next-line github/no-then
-        .catch(err => {
-          core.error(err)
-        })
+      const params: StartInstancesCommandInput = {
+        InstanceIds: ids
+      }
+      const command: StartInstancesCommand = new StartInstancesCommand(params)
+      const data: StartInstancesCommandOutput = await this._client.send(command)
+      core.debug(JSON.stringify(data.StartingInstances))
     } catch (err) {
       core.error(err)
     }
   }
 
-  stopInstances(ids: string[]): void {
-    // TODO: Add logic for only stopping an instance when it is idle in GitHub. Consider conditions in which a runner is started, but another job picks it up.
-    this._client.stopInstances({InstanceIds: ids}).send()
+  async stopInstances(ids: string[]): Promise<void> {
+    try {
+      const params: StopInstancesCommandInput = {
+        InstanceIds: ids
+      }
+      const command: StopInstancesCommand = new StopInstancesCommand(params)
+      const data: StopInstancesCommandOutput = await this._client.send(command)
+      core.debug(JSON.stringify(data.StoppingInstances))
+    } catch (err) {
+      core.error(err)
+    }
   }
 }
