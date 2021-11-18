@@ -163,17 +163,23 @@ export class EC2Service {
     return false
   }
 
-  async startInstances(ids: string[]): Promise<void> {
+  async startInstances(label: string, requested: number): Promise<string[]> {
+    const startedInstanceIds: string[] = []
     try {
+      const ids: string[] = (await this.getFreeInstances(label, requested)).map(
+        x => x.id
+      )
       const params: StartInstancesCommandInput = {
         InstanceIds: ids
       }
       const command: StartInstancesCommand = new StartInstancesCommand(params)
       const data: StartInstancesCommandOutput = await this._client.send(command)
       core.debug(JSON.stringify(data.StartingInstances))
+      startedInstanceIds.push(...ids)
     } catch (err) {
-      core.error(err)
+      core.warning(err)
     }
+    return startedInstanceIds
   }
 
   async stopInstances(ids: string[]): Promise<void> {

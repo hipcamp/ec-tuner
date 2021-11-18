@@ -4,7 +4,7 @@ import {EC2Service} from './services/ec2.service'
 
 async function run(
   entryTime: Date = new Date(),
-  stoppedInstanceCount = 0
+  modifiedInstanceCount = 0
 ): Promise<void> {
   const region: string = core.getInput('region')
   const label: string = core.getInput('label')
@@ -12,48 +12,56 @@ async function run(
   const timeout: number = +core.getInput('timeout') || 60
   const action: string = core.getInput('action')
   const runners: number = +core.getInput('runners')
+  const block: number = +core.getInput('block')
 
   try {
     const ec2: EC2Service = new EC2Service(region, token)
 
     if (action.toLowerCase() === 'start') {
       if (label) {
-        try {
-          const instances: SimpleInstance[] = await ec2.getFreeInstances(
-            label,
-            runners
-          )
-          await ec2.startInstances(instances.map(x => x.id))
-          if (instances.length < runners) {
-            core.warning(
-              `Could only start ${instances.length} of the requested ${runners} instance(s)`
-            )
+        while (modifiedInstanceCount < runners) {
+          const elapsedTime = Date.now() - entryTime.getTime()
+          if (elapsedTime / 1000 >= timeout) {
+            throw new Error('start timeout has exceeded')
           }
-          core.setOutput('ids', instances.map(x => x.id).join(' '))
-          core.setOutput('started', instances.length)
-          core.setOutput('label', label)
-        } catch (e) {
-          throw e
+
+          core.info(
+            `Have started ${modifiedInstanceCount} of ${runners} instances after ${Math.round(
+              elapsedTime / 1000
+            )} seconds..`
+          )
+
+          const neededRunners: number = runners - modifiedInstanceCount
+
+          const instances = await ec2.startInstances(
+            label,
+            block <= neededRunners ? block : neededRunners
+          )
+
+          modifiedInstanceCount += instances.length
         }
+
+        core.setOutput('started', modifiedInstanceCount)
+        core.setOutput('label', label)
       } else {
         throw new Error('label is required')
       }
     } else if (action.toLowerCase() === 'stop') {
-      while (stoppedInstanceCount < runners) {
+      while (modifiedInstanceCount < runners) {
         const elapsedTime = Date.now() - entryTime.getTime()
         if (elapsedTime / 1000 >= timeout) {
           throw new Error('stop timeout has exceeded')
         }
 
         core.info(
-          `Have stopped ${stoppedInstanceCount} of ${runners} instances after ${Math.round(
+          `Have stopped ${modifiedInstanceCount} of ${runners} instances after ${Math.round(
             elapsedTime / 1000
           )} seconds..`
         )
 
         const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
           label,
-          runners - stoppedInstanceCount
+          runners - modifiedInstanceCount
         )
         const instanceIds = idleInstances.map(instance => instance.id)
         const instancePrivateIps = idleInstances.map(
@@ -70,12 +78,12 @@ async function run(
           // Make sure the runners are actually idle in GH before adding to count
           // eslint-disable-next-line no-empty
           while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {}
-          stoppedInstanceCount += instanceIds.length
+          modifiedInstanceCount += instanceIds.length
         }
       }
 
       core.info(
-        `Successfully shut down ${stoppedInstanceCount} of ${runners} instances!`
+        `Successfully shut down ${modifiedInstanceCount} of ${runners} instances!`
       )
     } else if (action.toLowerCase() === 'test') {
       core.info('Able to trigger action run!')
@@ -84,23 +92,23 @@ async function run(
     }
   } catch (error) {
     if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
-      if (action.toLowerCase() === 'stop') {
-        if (stoppedInstanceCount === 0) {
+      if (action.toLowerCase() === 'start' || action.toLowerCase() === 'stop') {
+        if (modifiedInstanceCount === 0) {
           core.warning(
-            `Heads up! Was not able to shut down any of the ${runners} required runners..`
+            `Heads up! Was not able to ${action.toLowerCase()} any of the ${runners} required runners..`
           )
         } else {
           core.warning(
-            `Heads up! Only shut down ${stoppedInstanceCount} of ${runners} runners..`
+            `Heads up! Only was able to ${action.toLowerCase()} ${modifiedInstanceCount} of ${runners} runners..`
           )
         }
       } else {
         core.setFailed(error.message)
       }
     } else {
-      core.info(`Error ${error.message}. Attempting again in 5 seconds...`)
+      core.info(`${error.message}. Attempting again in 5 seconds...`)
       setTimeout(() => {
-        run(entryTime, stoppedInstanceCount)
+        run(entryTime, modifiedInstanceCount)
       }, 5000)
     }
   }
