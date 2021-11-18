@@ -186,8 +186,7 @@ export class EC2Service {
       core.debug(JSON.stringify(data.StartingInstances))
       return data.StartingInstances?.map(x => x.InstanceId) as string[]
     } catch (err) {
-      core.warning(err)
-      return []
+      throw err
     }
   }
 
