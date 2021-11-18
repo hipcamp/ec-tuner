@@ -109,6 +109,8 @@ async function run(
             } of ${runners} runners..`
           )
         }
+        core.setOutput('started', modifiedIds.length)
+        core.setOutput('label', label)
       } else {
         core.setFailed(error.message)
       }
