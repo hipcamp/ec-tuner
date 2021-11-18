@@ -72,26 +72,21 @@ export class EC2Service {
     }
   }
 
-  async instancesStarted(instanceIds: string[]): Promise<boolean> {
-    const instances: SimpleInstance[] = await this.getInstances(instanceIds)
-    return (
-      instances
-        .map(x => x.status.toLowerCase())
-        .findIndex(x => x === 'stopped') === -1
-    )
-  }
-
   async getFreeInstances(
     label: string,
-    runners = 1
+    runners = 1,
+    sanitizeIds: string[] = []
   ): Promise<SimpleInstance[]> {
     return new Promise(async (resolve, reject) => {
       const instances: SimpleInstance[] = await this.getInstances()
-      const filteredInstances: SimpleInstance[] = instances.filter(
-        x =>
+      const filteredInstances: SimpleInstance[] = instances.filter(x => {
+        return (
           x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
-            -1 && x.status === 'stopped'
-      )
+            -1 &&
+          x.status === 'stopped' &&
+          sanitizeIds.findIndex(y => y === x.id) === -1
+        )
+      })
 
       if (filteredInstances.length > 0) {
         resolve(filteredInstances.slice(0, runners))
@@ -174,30 +169,25 @@ export class EC2Service {
     return false
   }
 
-  async startInstances(label: string, requested: number): Promise<number> {
+  async startInstances(
+    label: string,
+    requested: number,
+    sanitizeIds: string[]
+  ): Promise<string[]> {
     try {
-      const ids: string[] = (await this.getFreeInstances(label, requested)).map(
-        x => x.id
-      )
+      const ids: string[] = (
+        await this.getFreeInstances(label, requested, sanitizeIds)
+      ).map(x => x.id)
       const params: StartInstancesCommandInput = {
         InstanceIds: ids
       }
       const command: StartInstancesCommand = new StartInstancesCommand(params)
       const data: StartInstancesCommandOutput = await this._client.send(command)
       core.debug(JSON.stringify(data.StartingInstances))
-      const startedIds: string[] =
-        (data.StartingInstances?.map(x => x.InstanceId) as string[]) || []
-      for (let i = 0; i < 5; i++) {
-        setTimeout(async () => {
-          if (await this.instancesStarted(startedIds)) {
-            return startedIds.length
-          }
-        }, 1000 * i)
-      }
-      return 0
+      return data.StartingInstances?.map(x => x.InstanceId) as string[]
     } catch (err) {
       core.warning(err)
-      return 0
+      return []
     }
   }
 
