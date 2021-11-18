@@ -147,7 +147,21 @@ export class EC2Service {
   }
 
   startInstances(ids: string[]): void {
-    this._client.startInstances({InstanceIds: ids}).send()
+    try {
+      this._client
+        .startInstances({InstanceIds: ids})
+        .promise()
+        // eslint-disable-next-line github/no-then
+        .then(resp => {
+          core.info(JSON.stringify(resp))
+        })
+        // eslint-disable-next-line github/no-then
+        .catch(err => {
+          core.error(err)
+        })
+    } catch (err) {
+      core.error(err)
+    }
   }
 
   stopInstances(ids: string[]): void {
