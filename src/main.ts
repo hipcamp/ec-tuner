@@ -14,6 +14,8 @@ async function run(
   const runners: number = +core.getInput('runners')
   const block: number = +core.getInput('block')
 
+  core.setOutput('requested', runners)
+
   try {
     const ec2: EC2Service = new EC2Service(region, token)
 
