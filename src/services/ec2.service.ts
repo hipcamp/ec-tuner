@@ -34,7 +34,7 @@ export class EC2Service {
     core.debug(`set organization to: ${this.organization}`)
   }
 
-  async getEC2Instances(instanceIds: string[] = []): Promise<SimpleInstance[]> {
+  async getInstances(instanceIds: string[] = []): Promise<SimpleInstance[]> {
     const params: DescribeInstancesCommandInput = {}
     if (instanceIds.length > 0) {
       params.InstanceIds = instanceIds
@@ -72,36 +72,6 @@ export class EC2Service {
     }
   }
 
-  private async getFilteredEC2Instances(
-    label: string,
-    status: string,
-    instanceIds: string[] = []
-  ): Promise<SimpleInstance[]> {
-    const instances: SimpleInstance[] = await this.getEC2Instances(instanceIds)
-    const filteredInstances: SimpleInstance[] = instances.filter(x => {
-      return (
-        x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) > -1 &&
-        x.status === status
-      )
-    })
-
-    return filteredInstances
-  }
-
-  async getStoppedEC2Instances(
-    label: string,
-    instanceIds: string[] = []
-  ): Promise<SimpleInstance[]> {
-    return this.getFilteredEC2Instances(label, 'stopped', instanceIds)
-  }
-
-  async getRunningEC2Instances(
-    label: string,
-    instanceIds: string[] = []
-  ): Promise<SimpleInstance[]> {
-    return this.getFilteredEC2Instances(label, 'running', instanceIds)
-  }
-
   private shuffle(array: unknown[]): unknown[] {
     let currentIndex = array.length,
       randomIndex
@@ -122,15 +92,21 @@ export class EC2Service {
     return array
   }
 
-  async getStartableEC2Instances(
+  async getFreeInstances(
     label: string,
     runners = 1,
     sanitizeIds: string[] = []
   ): Promise<SimpleInstance[]> {
     return new Promise(async (resolve, reject) => {
-      const filteredInstances: SimpleInstance[] = (
-        await this.getStoppedEC2Instances(label)
-      ).filter(x => sanitizeIds.findIndex(y => y === x.id) === -1)
+      const instances: SimpleInstance[] = await this.getInstances()
+      const filteredInstances: SimpleInstance[] = instances.filter(x => {
+        return (
+          x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
+            -1 &&
+          x.status === 'stopped' &&
+          sanitizeIds.findIndex(y => y === x.id) === -1
+        )
+      })
 
       if (filteredInstances.length > 0) {
         resolve(
@@ -140,38 +116,38 @@ export class EC2Service {
           )
         )
       } else {
-        reject(new Error('No startable instances available.'))
+        // TODO: Add messaging for when not enough runners are available, and potential retry logic
+        // TODO: add some alerting here
+        reject(new Error('No free instances available.'))
       }
     })
   }
 
-  async getStoppableEC2Instances(
+  async getIdleInstances(
     label: string,
-    runners = 1,
-    sanitizeIds: string[] = []
+    runners = 1
   ): Promise<SimpleInstance[]> {
     return new Promise(async (resolve, reject) => {
-      const filteredInstances: SimpleInstance[] = (
-        await this.getRunningEC2Instances(label)
-      ).filter(x => sanitizeIds.findIndex(y => y === x.id) === -1)
+      const instances: SimpleInstance[] = await this.getInstances()
+
+      const runningInstances: SimpleInstance[] = instances.filter(
+        x =>
+          x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) >
+            -1 && x.status === 'running'
+      )
 
       const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
 
-      const idleInstances: SimpleInstance[] = filteredInstances.filter(
+      const idleInstances: SimpleInstance[] = runningInstances.filter(
         (instance: SimpleInstance) => {
           return githubIdleRunnerIps.includes(instance.privateIp)
         }
       )
 
-      if (idleInstances.length > 0) {
-        resolve(
-          (this.shuffle(filteredInstances) as SimpleInstance[]).slice(
-            0,
-            runners
-          )
-        )
+      if (idleInstances.length !== 0) {
+        resolve(idleInstances.slice(0, runners))
       } else {
-        reject(new Error('No startable instances available.'))
+        reject(new Error('No idle instances exist.'))
       }
     })
   }
@@ -225,7 +201,7 @@ export class EC2Service {
   ): Promise<string[]> {
     try {
       const ids: string[] = (
-        await this.getStartableEC2Instances(label, requested, sanitizeIds)
+        await this.getFreeInstances(label, requested, sanitizeIds)
       ).map(x => x.id)
       const params: StartInstancesCommandInput = {
         InstanceIds: ids
@@ -239,24 +215,16 @@ export class EC2Service {
     }
   }
 
-  async stopInstances(
-    label: string,
-    requested: number,
-    sanitizeIds: string[]
-  ): Promise<string[]> {
+  async stopInstances(ids: string[]): Promise<void> {
     try {
-      const ids: string[] = (
-        await this.getStoppableEC2Instances(label, requested, sanitizeIds)
-      ).map(x => x.id)
       const params: StopInstancesCommandInput = {
         InstanceIds: ids
       }
       const command: StopInstancesCommand = new StopInstancesCommand(params)
       const data: StopInstancesCommandOutput = await this._client.send(command)
       core.debug(JSON.stringify(data.StoppingInstances))
-      return data.StoppingInstances?.map(x => x.InstanceId) as string[]
     } catch (err) {
-      throw err
+      core.error(err)
     }
   }
 }

@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import {SimpleInstance} from './models/simple-instance'
 import {EC2Service} from './services/ec2.service'
 
 async function run(
@@ -15,53 +16,87 @@ async function run(
 
   core.setOutput('requested', runners)
 
-  // check for label
-  if (!label) {
-    core.error('(label) is a required parameter')
-  }
-
   try {
     const ec2: EC2Service = new EC2Service(region, token)
 
-    const formattedAction = action.toLowerCase()
+    if (action.toLowerCase() === 'start') {
+      if (label) {
+        while (modifiedIds.length < runners) {
+          const elapsedTime = Date.now() - entryTime.getTime()
+          if (elapsedTime / 1000 >= timeout) {
+            throw new Error('start timeout has exceeded')
+          }
 
-    while (modifiedIds.length < runners) {
-      const elapsedTime = Date.now() - entryTime.getTime()
-      if (elapsedTime / 1000 >= timeout) {
-        throw new Error('start timeout has exceeded')
+          core.info(
+            `Have started ${
+              modifiedIds.length
+            } of ${runners} instances after ${Math.round(
+              elapsedTime / 1000
+            )} seconds..`
+          )
+
+          const neededRunners: number = runners - modifiedIds.length
+
+          const instancesStarted = await ec2.startInstances(
+            label,
+            block <= neededRunners ? block : neededRunners,
+            modifiedIds
+          )
+
+          modifiedIds.push(...instancesStarted)
+        }
+
+        core.setOutput('started', modifiedIds.length)
+        core.setOutput('label', label)
+      } else {
+        throw new Error('label is required')
+      }
+    } else if (action.toLowerCase() === 'stop') {
+      while (modifiedIds.length < runners) {
+        const elapsedTime = Date.now() - entryTime.getTime()
+        if (elapsedTime / 1000 >= timeout) {
+          throw new Error('stop timeout has exceeded')
+        }
+
+        core.info(
+          `Have stopped ${
+            modifiedIds.length
+          } of ${runners} instances after ${Math.round(
+            elapsedTime / 1000
+          )} seconds..`
+        )
+
+        const idleInstances: SimpleInstance[] = await ec2.getIdleInstances(
+          label,
+          runners - modifiedIds.length
+        )
+        const instanceIds = idleInstances.map(instance => instance.id)
+        const instancePrivateIps = idleInstances.map(
+          instance => instance.privateIp
+        )
+
+        if (instanceIds.length > 0) {
+          core.info(
+            `GitHub Idle Runners to Stop: ${JSON.stringify(instanceIds)}`
+          )
+
+          await ec2.stopInstances(instanceIds)
+
+          // Make sure the runners are actually idle in GH before adding to count
+          // eslint-disable-next-line no-empty
+          while (await ec2.anyStoppedInstanceRunning(instancePrivateIps)) {}
+          modifiedIds.push(...instanceIds)
+        }
       }
 
       core.info(
-        `Have run action (${formattedAction}) on ${
-          modifiedIds.length
-        } of ${runners} instances after ${Math.round(
-          elapsedTime / 1000
-        )} seconds..`
+        `Successfully shut down ${modifiedIds.length} of ${runners} instances!`
       )
-
-      const neededRunners: number = runners - modifiedIds.length
-
-      if (formattedAction === 'start') {
-        const instancesStarted = await ec2.startInstances(
-          label,
-          block <= neededRunners ? block : neededRunners,
-          modifiedIds
-        )
-
-        modifiedIds.push(...instancesStarted)
-      } else if (formattedAction === 'stop') {
-        const instancesStarted = await ec2.stopInstances(
-          label,
-          block <= neededRunners ? block : neededRunners,
-          modifiedIds
-        )
-
-        modifiedIds.push(...instancesStarted)
-      }
+    } else if (action.toLowerCase() === 'test') {
+      core.info('Able to trigger action run!')
+    } else {
+      throw new Error(`(${action}) is not a valid action`)
     }
-
-    core.setOutput('started', modifiedIds.length)
-    core.setOutput('label', label)
   } catch (error) {
     if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
       if (action.toLowerCase() === 'start' || action.toLowerCase() === 'stop') {
