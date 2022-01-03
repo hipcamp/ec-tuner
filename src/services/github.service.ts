@@ -3,7 +3,7 @@ import * as core from '@actions/core'
 import {GithubRunner} from '../models/github-runner'
 
 const STOPPING_LABEL = 'stopping'
-const WORKFLOW_LABEL_REGEX = /^\d+$/g
+const WORKFLOW_LABEL_REGEX = /^\d+-.*$/g
 
 export class GithubService {
   private readonly _client: Octokit
