@@ -106,30 +106,22 @@ export class EC2Service {
   }
 
   async startInstances(ids: string[]): Promise<string[]> {
-    try {
-      const params: StartInstancesCommandInput = {
-        InstanceIds: ids
-      }
-      const command: StartInstancesCommand = new StartInstancesCommand(params)
-      const data: StartInstancesCommandOutput = await this._client.send(command)
-      core.debug(JSON.stringify(data.StartingInstances))
-      return data.StartingInstances?.map(x => x.InstanceId) as string[]
-    } catch (err) {
-      throw err
+    const params: StartInstancesCommandInput = {
+      InstanceIds: ids
     }
+    const command: StartInstancesCommand = new StartInstancesCommand(params)
+    const data: StartInstancesCommandOutput = await this._client.send(command)
+    core.debug(JSON.stringify(data.StartingInstances))
+    return data.StartingInstances?.map(x => x.InstanceId) as string[]
   }
 
   async stopInstances(ids: string[]): Promise<string[]> {
-    try {
-      const params: StopInstancesCommandInput = {
-        InstanceIds: ids
-      }
-      const command: StopInstancesCommand = new StopInstancesCommand(params)
-      const data: StopInstancesCommandOutput = await this._client.send(command)
-      core.debug(JSON.stringify(data.StoppingInstances))
-      return data.StoppingInstances?.map(x => x.InstanceId) as string[]
-    } catch (err) {
-      throw err
+    const params: StopInstancesCommandInput = {
+      InstanceIds: ids
     }
+    const command: StopInstancesCommand = new StopInstancesCommand(params)
+    const data: StopInstancesCommandOutput = await this._client.send(command)
+    core.debug(JSON.stringify(data.StoppingInstances))
+    return data.StoppingInstances?.map(x => x.InstanceId) as string[]
   }
 }
