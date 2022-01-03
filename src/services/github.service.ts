@@ -19,13 +19,29 @@ export class GithubService {
     core.debug(`set organization to: ${this.organization}`)
   }
 
+  shuffle(array: unknown[]): unknown[] {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const temp = array[i]
+      array[i] = array[j]
+      array[j] = temp
+    }
+
+    return array
+  }
+
   async getStartableRunnersWithLabel(label: string): Promise<GithubRunner[]> {
     // favor runners with the least amount of workflows assigned, starting with runners that are off
     const startableRunners = (await this.getRunnersWithLabels([label])).filter(
       x => !this.runnerHasStoppingLabel(x)
     )
 
-    return startableRunners.sort((a: GithubRunner, b: GithubRunner) => {
+    // shuffle array to introduce randomness to selection
+    const shuffledRunners: GithubRunner[] = this.shuffle(
+      startableRunners
+    ) as GithubRunner[]
+
+    return shuffledRunners.sort((a: GithubRunner, b: GithubRunner) => {
       if (a.status === b.status) {
         return this.runnerWorkflowLabels(a).length <
           this.runnerWorkflowLabels(b).length
