@@ -12,26 +12,16 @@ import {
   StopInstancesCommandOutput
 } from '@aws-sdk/client-ec2'
 import {SimpleInstance} from '../models/simple-instance'
-import {Octokit} from '@octokit/rest'
 import * as core from '@actions/core'
 
 export class EC2Service {
   private readonly _client: EC2Client
-  private readonly _github: Octokit
-  private readonly organization: string
 
-  constructor(region: string, token: string) {
+  constructor(region: string) {
     const options: EC2ClientConfig = {
       region
     }
     this._client = new EC2Client(options)
-    this._github = new Octokit({
-      auth: `token ${token}`
-    })
-    this.organization = (process.env['GITHUB_REPOSITORY'] as string).split(
-      '/'
-    )[0]
-    core.debug(`set organization to: ${this.organization}`)
   }
 
   async getEC2Instances(instanceIds: string[] = []): Promise<SimpleInstance[]> {
@@ -72,6 +62,22 @@ export class EC2Service {
     }
   }
 
+  async getEC2InstancesByPrivateIps(
+    ips: string[] = []
+  ): Promise<Map<string, SimpleInstance>> {
+    const instances: SimpleInstance[] = await this.getEC2Instances()
+
+    const instanceMap: Map<string, SimpleInstance> = new Map()
+
+    for (const instance of instances) {
+      if (instance.privateIp && ips.includes(instance.privateIp)) {
+        instanceMap.set(instance.privateIp, instance)
+      }
+    }
+
+    return instanceMap
+  }
+
   private async getFilteredEC2Instances(
     label: string,
     status: string,
@@ -79,10 +85,7 @@ export class EC2Service {
   ): Promise<SimpleInstance[]> {
     const instances: SimpleInstance[] = await this.getEC2Instances(instanceIds)
     const filteredInstances: SimpleInstance[] = instances.filter(x => {
-      return (
-        x.labels.findIndex(k => k.toLowerCase() === label.toLowerCase()) > -1 &&
-        x.status === status
-      )
+      return x.labels.includes(label.toLowerCase()) && x.status === status
     })
 
     return filteredInstances
@@ -102,131 +105,8 @@ export class EC2Service {
     return this.getFilteredEC2Instances(label, 'running', instanceIds)
   }
 
-  private shuffle(array: unknown[]): unknown[] {
-    let currentIndex = array.length,
-      randomIndex
-
-    // While there remain elements to shuffle...
-    while (currentIndex !== 0) {
-      // Pick a remaining element...
-      randomIndex = Math.floor(Math.random() * currentIndex)
-      currentIndex--
-
-      // And swap it with the current element.
-      ;[array[currentIndex], array[randomIndex]] = [
-        array[randomIndex],
-        array[currentIndex]
-      ]
-    }
-
-    return array
-  }
-
-  async getStartableEC2Instances(
-    label: string,
-    runners = 1,
-    sanitizeIds: string[] = []
-  ): Promise<SimpleInstance[]> {
-    return new Promise(async (resolve, reject) => {
-      const filteredInstances: SimpleInstance[] = (
-        await this.getStoppedEC2Instances(label)
-      ).filter(x => sanitizeIds.findIndex(y => y === x.id) === -1)
-
-      if (filteredInstances.length > 0) {
-        resolve(
-          (this.shuffle(filteredInstances) as SimpleInstance[]).slice(
-            0,
-            runners
-          )
-        )
-      } else {
-        reject(new Error('No startable instances available.'))
-      }
-    })
-  }
-
-  async getStoppableEC2Instances(
-    label: string,
-    runners = 1,
-    sanitizeIds: string[] = []
-  ): Promise<SimpleInstance[]> {
-    return new Promise(async (resolve, reject) => {
-      const filteredInstances: SimpleInstance[] = (
-        await this.getRunningEC2Instances(label)
-      ).filter(x => sanitizeIds.findIndex(y => y === x.id) === -1)
-
-      const githubIdleRunnerIps = await this.getGithubIdleRunnerIps()
-
-      const idleInstances: SimpleInstance[] = filteredInstances.filter(
-        (instance: SimpleInstance) => {
-          return githubIdleRunnerIps.includes(instance.privateIp)
-        }
-      )
-
-      if (idleInstances.length > 0) {
-        resolve(
-          (this.shuffle(filteredInstances) as SimpleInstance[]).slice(
-            0,
-            runners
-          )
-        )
-      } else {
-        reject(new Error('No startable instances available.'))
-      }
-    })
-  }
-
-  async getGithubIdleRunnerIps(): Promise<string[]> {
-    const response = await this._github.paginate(
-      'GET /orgs/{org}/actions/runners',
-      {
-        org: this.organization
-      }
-    )
-
-    const idleRunnerIps: string[] = []
-    for (const runner of response) {
-      if (runner.status === 'online' && runner.busy === false) {
-        idleRunnerIps.push(
-          runner.name
-            .replace(/^ip-/i, '')
-            .replace(/-\d+$/i, '')
-            .replace(/-/g, '.')
-        )
-      }
-    }
-
-    return idleRunnerIps
-  }
-
-  async anyStoppedInstanceRunning(privateIps: string[]): Promise<boolean> {
-    const githubIps = privateIps.map(ip => `ip-${ip}-1`.replace(/\./g, '-'))
-
-    const response = await this._github.paginate(
-      'GET /orgs/{org}/actions/runners',
-      {
-        org: this.organization
-      }
-    )
-
-    for (const runner of response) {
-      if (githubIps.includes(runner.name) && runner.status === 'online') {
-        return true
-      }
-    }
-
-    return false
-  }
-
-  async startInstances(
-    label: string,
-    requested: number,
-    sanitizeIds: string[]
-  ): Promise<string[]> {
+  async startInstances(ids: string[]): Promise<string[]> {
     try {
-      const ids: string[] = (
-        await this.getStartableEC2Instances(label, requested, sanitizeIds)
-      ).map(x => x.id)
       const params: StartInstancesCommandInput = {
         InstanceIds: ids
       }
@@ -239,15 +119,8 @@ export class EC2Service {
     }
   }
 
-  async stopInstances(
-    label: string,
-    requested: number,
-    sanitizeIds: string[]
-  ): Promise<string[]> {
+  async stopInstances(ids: string[]): Promise<string[]> {
     try {
-      const ids: string[] = (
-        await this.getStoppableEC2Instances(label, requested, sanitizeIds)
-      ).map(x => x.id)
       const params: StopInstancesCommandInput = {
         InstanceIds: ids
       }

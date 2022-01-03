@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import {EC2Service} from './services/ec2.service'
+import {ControllerService} from './services/controller.service'
 
 async function run(
   entryTime: Date = new Date(),
@@ -20,73 +20,64 @@ async function run(
     core.error('(label) is a required parameter')
   }
 
-  try {
-    const ec2: EC2Service = new EC2Service(region, token)
+  const controller: ControllerService = new ControllerService(region, token)
 
-    const formattedAction = action.toLowerCase()
+  const formattedAction = action.toLowerCase()
 
-    while (modifiedIds.length < runners) {
-      const elapsedTime = Date.now() - entryTime.getTime()
-      if (elapsedTime / 1000 >= timeout) {
-        throw new Error('start timeout has exceeded')
-      }
+  if (formattedAction === 'start') {
+    try {
+      while (modifiedIds.length < runners) {
+        const elapsedTime = Date.now() - entryTime.getTime()
+        if (elapsedTime / 1000 >= timeout) {
+          throw new Error('start timeout has exceeded')
+        }
 
-      core.info(
-        `Have run action (${formattedAction}) on ${
-          modifiedIds.length
-        } of ${runners} instances after ${Math.round(
-          elapsedTime / 1000
-        )} seconds..`
-      )
-
-      const neededRunners: number = runners - modifiedIds.length
-
-      if (formattedAction === 'start') {
-        const instancesStarted = await ec2.startInstances(
-          label,
-          block <= neededRunners ? block : neededRunners,
-          modifiedIds
+        core.info(
+          `Have run action (${formattedAction}) on ${
+            modifiedIds.length
+          } of ${runners} instances after ${Math.round(
+            elapsedTime / 1000
+          )} seconds..`
         )
 
-        modifiedIds.push(...instancesStarted)
-      } else if (formattedAction === 'stop') {
-        const instancesStarted = await ec2.stopInstances(
-          label,
-          block <= neededRunners ? block : neededRunners,
-          modifiedIds
-        )
+        const neededRunners: number = runners - modifiedIds.length
+
+        const instancesStarted = (
+          await controller.startInstances(
+            label,
+            block <= neededRunners ? block : neededRunners,
+            modifiedIds
+          )
+        ).map(x => x.id)
 
         modifiedIds.push(...instancesStarted)
       }
-    }
 
-    core.setOutput('started', modifiedIds.length)
-    core.setOutput('label', label)
-  } catch (error) {
-    if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
-      if (action.toLowerCase() === 'start' || action.toLowerCase() === 'stop') {
+      core.setOutput('started', modifiedIds.length)
+      core.setOutput('label', label)
+    } catch (error) {
+      if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
         if (modifiedIds.length === 0) {
           core.warning(
-            `Heads up! Was not able to ${action.toLowerCase()} any of the ${runners} required runners..`
+            `Heads up! Was not able to start any of the ${runners} required runners..`
           )
         } else {
           core.warning(
-            `Heads up! Only was able to ${action.toLowerCase()} ${
-              modifiedIds.length
-            } of ${runners} runners..`
+            `Heads up! Only was able to start ${modifiedIds.length} of ${runners} runners..`
           )
         }
         core.setOutput('started', modifiedIds.length)
         core.setOutput('label', label)
       } else {
-        core.setFailed(error.message)
+        core.info(`${error.message}. Attempting again in 5 seconds...`)
+        setTimeout(() => {
+          run(entryTime, modifiedIds)
+        }, 5000)
       }
-    } else {
-      core.info(`${error.message}. Attempting again in 5 seconds...`)
-      setTimeout(() => {
-        run(entryTime, modifiedIds)
-      }, 5000)
     }
+  } else {
+    const instancesStopped = await controller.stopInstances(label)
+    core.info(`Successfully Stopped (${instancesStopped.length}) instances!`)
   }
 }
 
