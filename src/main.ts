@@ -75,6 +75,9 @@ async function run(
         }, 5000)
       }
     }
+  } else if (formattedAction === 'cleanup') {
+    const instancesStopped = await controller.cleanupInstances()
+    core.info(`Successfully Cleaned Up (${instancesStopped.length}) instances!`)
   } else {
     const instancesStopped = await controller.stopInstances(label)
     core.info(`Successfully Stopped (${instancesStopped.length}) instances!`)

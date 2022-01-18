@@ -76,6 +76,36 @@ export class ControllerService {
         )
       }
 
+      const stoppableRunners: GithubRunner[] = await this._githubService.getStoppableRunners()
+
+      const ec2InstanceMap: Map<
+        string,
+        SimpleInstance
+      > = await this._ec2Service.getEC2InstancesByPrivateIps(
+        stoppableRunners.map(x => x.ip)
+      )
+
+      const stoppedInstances: SimpleInstance[] = []
+
+      for (const runner of stoppableRunners) {
+        const ec2Instance: SimpleInstance = ec2InstanceMap.get(
+          runner.ip
+        ) as SimpleInstance
+        try {
+          await this._ec2Service.stopInstances([ec2Instance.id])
+          await this._githubService.markRunnerAsStoppedSuccessfully(runner.id)
+          stoppedInstances.push(ec2Instance)
+        } catch (err) {
+          core.info(`Could not stop instance (${ec2Instance.id})`)
+        }
+      }
+
+      resolve(stoppedInstances)
+    })
+  }
+
+  async cleanupInstances(): Promise<SimpleInstance[]> {
+    return new Promise(async resolve => {
       // add cleanup for expired workflows
       await this._githubService.cleanupExpiredWorkflows()
 
