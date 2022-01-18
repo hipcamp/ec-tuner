@@ -1,9 +1,15 @@
+/* eslint-disable prefer-spread */
 import {Octokit} from '@octokit/rest'
 import * as core from '@actions/core'
 import {GithubRunner} from '../models/github-runner'
 
 const STOPPING_LABEL = 'stopping'
 const WORKFLOW_LABEL_REGEX = /^\d+-.*$/g
+
+export interface WorkflowStatus {
+  id: number
+  status: string
+}
 
 export class GithubService {
   private readonly _client: Octokit
@@ -95,7 +101,7 @@ export class GithubService {
     const response = await this._client.paginate(
       'GET /orgs/{org}/actions/runners',
       {
-        org: 'hipcamp'
+        org: this.organization
       }
     )
     return response
@@ -127,7 +133,7 @@ export class GithubService {
     const response = await this._client.paginate(
       'GET /orgs/{org}/actions/runners',
       {
-        org: 'hipcamp'
+        org: this.organization
       }
     )
     return response
@@ -154,6 +160,46 @@ export class GithubService {
       }) as GithubRunner[]
   }
 
+  async getActiveWorkflowRuns(): Promise<Map<number, string>> {
+    // get all repos
+    const repos = (
+      await this._client.paginate('GET /orgs/{org}/repos', {
+        org: this.organization
+      })
+    ).map(x => x.name)
+
+    // create map of ids
+    const responses: WorkflowStatus[][] = await Promise.all(
+      repos.map(async repo => {
+        const workflowRuns = (
+          await this._client.request('GET /repos/{owner}/{repo}/actions/runs', {
+            owner: this.organization,
+            repo
+          })
+        ).data.workflow_runs
+
+        return workflowRuns.map(x => {
+          return {
+            id: x.id,
+            status: x.status || 'unknown'
+          }
+        })
+      })
+    )
+
+    const flatResponses: WorkflowStatus[] = ([] as WorkflowStatus[]).concat
+      .apply([] as WorkflowStatus[], responses)
+      .filter((x: WorkflowStatus) => x.status !== 'completed')
+
+    return flatResponses.reduce(
+      (map: Map<number, string>, obj: WorkflowStatus) => {
+        map.set(obj.id, obj.status)
+        return map
+      },
+      new Map<number, string>()
+    )
+  }
+
   async markRunnerAsStopping(runnerId: number): Promise<void> {
     return this.addCustomLabelToRunner(runnerId, STOPPING_LABEL)
   }
@@ -166,7 +212,7 @@ export class GithubService {
     await this._client.request(
       'POST /orgs/{org}/actions/runners/{runner_id}/labels',
       {
-        org: 'hipcamp',
+        org: this.organization,
         runner_id: runnerId,
         labels: [label]
       }
@@ -180,7 +226,7 @@ export class GithubService {
     await this._client.request(
       'DELETE /orgs/{org}/actions/runners/{runner_id}/labels/{name}',
       {
-        org: 'hipcamp',
+        org: this.organization,
         runner_id: runnerId,
         name: label
       }
