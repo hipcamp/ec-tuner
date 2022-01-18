@@ -11,6 +11,7 @@ inputs:
   label:
     required: true
     description: 'the label to filter EC2 instances with'
+    default: 'not_provided'
   timeout:
     required: true
     description: 'time to wait for a matching instance (seconds)'
