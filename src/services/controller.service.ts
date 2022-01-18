@@ -76,6 +76,9 @@ export class ControllerService {
         )
       }
 
+      // add cleanup for expired workflows
+      await this._githubService.cleanupExpiredWorkflows()
+
       const stoppableRunners: GithubRunner[] = await this._githubService.getStoppableRunners()
 
       const ec2InstanceMap: Map<

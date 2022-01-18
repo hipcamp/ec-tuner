@@ -36,6 +36,30 @@ export class GithubService {
     return array
   }
 
+  async cleanupExpiredWorkflows(): Promise<void> {
+    // get all the workflow run labels
+    const runnersWithWorkflowLabels: GithubRunner[] = await this.getRunnersWithWorkflowLabels()
+
+    // get running workflow ids
+    const runningWorkflowMap: Map<
+      number,
+      string
+    > = await this.getActiveWorkflowRuns()
+
+    // remove workflow run label and add stopping label for any completed workflows
+    for (const runner of runnersWithWorkflowLabels) {
+      const workflowLabels: string[] = this.runnerWorkflowLabels(runner)
+      for (const label of workflowLabels) {
+        const workflowId: number = +label.split('-')[0]
+
+        if (!runningWorkflowMap.has(workflowId)) {
+          await this.markRunnerAsStopping(runner.id)
+          await this.removeCustomLabelFromRunner(runner.id, label)
+        }
+      }
+    }
+  }
+
   async getStartableRunnersWithLabel(label: string): Promise<GithubRunner[]> {
     // favor runners with the least amount of workflows assigned, starting with runners that are off
     const startableRunners = (await this.getRunnersWithLabels([label])).filter(
@@ -95,6 +119,28 @@ export class GithubService {
     }
 
     return workflowLabels
+  }
+
+  async getRunnersWithWorkflowLabels(): Promise<GithubRunner[]> {
+    const response = await this._client.paginate(
+      'GET /orgs/{org}/actions/runners',
+      {
+        org: this.organization
+      }
+    )
+
+    return (response.map(x => {
+      return {
+        id: x.id,
+        name: x.name,
+        busy: x.busy,
+        status: x.status,
+        labels: x.labels,
+        ip: x.name.replace(/^ip-/i, '').replace(/-\d+$/i, '').replace(/-/g, '.')
+      }
+    }) as GithubRunner[]).filter(x => {
+      return this.runnerHasWorkflowLabel(x)
+    })
   }
 
   async getRunnersWithLabels(labels: string[]): Promise<GithubRunner[]> {
