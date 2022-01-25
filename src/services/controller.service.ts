@@ -69,7 +69,7 @@ export class ControllerService {
       )
 
       for (const runner of matchingRunners) {
-        await this._githubService.markRunnerAsStopping(runner.id)
+        // await this._githubService.markRunnerAsStopping(runner.id)
         await this._githubService.removeCustomLabelFromRunner(
           runner.id,
           this.getDynamicLabel(label)
