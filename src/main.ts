@@ -19,6 +19,7 @@ async function run(
   if (!label) {
     core.error('(label) is a required parameter')
   }
+  core.setOutput('label', label)
 
   const controller: ControllerService = new ControllerService(region, token)
 
@@ -54,7 +55,6 @@ async function run(
       }
 
       core.setOutput('started', modifiedIds.length)
-      core.setOutput('label', label)
     } catch (error) {
       if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
         if (modifiedIds.length === 0) {
@@ -67,7 +67,6 @@ async function run(
           )
         }
         core.setOutput('started', modifiedIds.length)
-        core.setOutput('label', label)
       } else {
         core.info(`${error.message}. Attempting again in 5 seconds...`)
         setTimeout(() => {
