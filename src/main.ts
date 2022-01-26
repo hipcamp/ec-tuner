@@ -59,7 +59,7 @@ async function run(
     } catch (error: any) {
       if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
         if (modifiedIds.length === 0) {
-          core.warning(
+          core.setFailed(
             `Heads up! Was not able to start any of the ${runners} required runners..`
           )
         } else {
