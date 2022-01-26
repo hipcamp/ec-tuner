@@ -1,6 +1,6 @@
 {
   "name": "typescript-action",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "TypeScript template action",
   "main": "lib/main.js",
@@ -8,7 +8,7 @@
     "build": "tsc",
     "format": "prettier --write **/*.ts",
     "format-check": "prettier --check **/*.ts",
-    "lint": "eslint src/**/*.ts",
+    "lint": "npm run format-check",
     "package": "ncc build --source-map --license licenses.txt",
     "all": "npm run build && npm run format && npm run lint && npm run package"
   },
