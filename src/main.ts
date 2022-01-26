@@ -8,7 +8,7 @@ async function run(
   const region: string = core.getInput('region')
   const label: string = core.getInput('label')
   const token: string = core.getInput('token')
-  const timeout: number = +core.getInput('timeout') || 60
+  const timeout: number = +core.getInput('timeout') || 600
   const action: string = core.getInput('action')
   const runners: number = +core.getInput('runners')
   const block: number = +core.getInput('block')
