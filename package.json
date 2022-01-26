@@ -1,6 +1,6 @@
 {
   "name": "typescript-action",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "TypeScript template action",
   "main": "lib/main.js",
@@ -8,7 +8,7 @@
     "build": "tsc",
     "format": "prettier --write **/*.ts",
     "format-check": "prettier --check **/*.ts",
-    "lint": "eslint src/**/*.ts",
+    "lint": "npm run format-check",
     "package": "ncc build --source-map --license licenses.txt",
     "all": "npm run build && npm run format && npm run lint && npm run package"
   },
@@ -25,19 +25,19 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.4.0",
-    "@aws-sdk/client-ec2": "^3.41.0",
+    "@aws-sdk/client-ec2": "^3.48.0",
     "@octokit/rest": "^18.12.0"
   },
   "devDependencies": {
     "@types/node": "^17.0.12",
-    "@typescript-eslint/parser": "^4.28.3",
+    "@typescript-eslint/parser": "^5.10.1",
     "@vercel/ncc": "^0.29.0",
     "eslint": "^8.7.0",
     "eslint-plugin-github": "^4.3.2",
-    "eslint-plugin-jest": "^24.3.6",
+    "eslint-plugin-jest": "^26.0.0",
     "js-yaml": "^4.1.0",
-    "prettier": "2.2.1",
+    "prettier": "2.5.1",
     "ts-jest": "^27.0.3",
-    "typescript": "^4.1.3"
+    "typescript": "^4.5.5"
   }
 }

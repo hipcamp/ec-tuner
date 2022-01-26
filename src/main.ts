@@ -55,7 +55,8 @@ async function run(
       }
 
       core.setOutput('started', modifiedIds.length)
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       if ((new Date().getTime() - entryTime.getTime()) / 1000 >= timeout) {
         if (modifiedIds.length === 0) {
           core.warning(
