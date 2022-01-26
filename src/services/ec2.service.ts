@@ -56,7 +56,8 @@ export class EC2Service {
         }
       }
       return instances
-    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       core.error(err)
       return []
     }
