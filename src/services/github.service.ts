@@ -78,10 +78,14 @@ export class GithubService {
 
     return shuffledRunners.sort((a: GithubRunner, b: GithubRunner) => {
       if (a.status === b.status) {
-        return this.runnerWorkflowLabels(a).length <
-          this.runnerWorkflowLabels(b).length
-          ? -1
-          : 1
+        if (this.runnerHasStoppingLabel(a) === this.runnerHasStoppingLabel(b)) {
+          return this.runnerWorkflowLabels(a).length <
+            this.runnerWorkflowLabels(b).length
+            ? -1
+            : 1
+        } else {
+          return this.runnerHasStoppingLabel(a) ? 1 : -1
+        }
       } else {
         return a.status === 'offline' ? -1 : 1
       }

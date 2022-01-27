@@ -23,7 +23,7 @@ inputs:
   block:
     required: true
     description: 'the amount of runners to start at a time'
-    default: '1'
+    default: '10'
   token:
     required: true
     description: 'the gha token for getting idle status runners from github api'

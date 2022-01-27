@@ -8,7 +8,7 @@ async function run(
   const region: string = core.getInput('region')
   const label: string = core.getInput('label')
   const token: string = core.getInput('token')
-  const timeout: number = +core.getInput('timeout') || 180
+  const timeout: number = +core.getInput('timeout') || 360
   const action: string = core.getInput('action')
   const runners: number = +core.getInput('runners')
   const block: number = +core.getInput('block')
@@ -72,7 +72,7 @@ async function run(
         core.info(`${error.message}. Attempting again in 5 seconds...`)
         setTimeout(() => {
           run(entryTime, modifiedIds)
-        }, 5000)
+        }, 30 * 1000) // 30 seconds
       }
     }
   } else if (formattedAction === 'cleanup') {
