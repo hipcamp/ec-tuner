@@ -63,7 +63,12 @@ export class GithubService {
   async getStartableRunnersWithLabel(label: string): Promise<GithubRunner[]> {
     // favor runners with the least amount of workflows assigned, starting with runners that are off
     const startableRunners = (await this.getRunnersWithLabels([label])).filter(
-      x => !this.runnerHasStoppingLabel(x)
+      x => {
+        if (this.runnerHasStoppingLabel(x)) {
+          return this.runnerWorkflowLabels(x).length > 1
+        }
+        return true
+      }
     )
 
     // shuffle array to introduce randomness to selection
